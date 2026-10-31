@@ -22,7 +22,7 @@ func save_game(sim: Simulation, slot: int) -> bool:
 		last_error = db.error_message
 		return false
 	var ok := db.query_with_bindings("INSERT OR REPLACE INTO saves(slot,version,payload,checksum,updated_at) VALUES(?,?,?,?,?);",
-		[slot, 1, payload, payload.sha256_text(), Time.get_datetime_string_from_system()])
+		[slot, 2, payload, payload.sha256_text(), Time.get_datetime_string_from_system()])
 	if ok:
 		ok = db.query("COMMIT;")
 	if not ok:
@@ -35,10 +35,18 @@ func load_game(sim: Simulation, slot: int) -> bool:
 		last_error = "Este espaço não contém uma partida."
 		return false
 	var row: Dictionary = db.query_result[0]
-	if int(row.version) != 1 or str(row.payload).sha256_text() != str(row.checksum):
+	if int(row.version) not in [1, 2] or str(row.payload).sha256_text() != str(row.checksum):
 		last_error = "Versão incompatível ou salvamento corrompido."
 		return false
 	var candidate = normalize_numbers(JSON.parse_string(row.payload))
+	if candidate is Dictionary and candidate.get("schema_version") == 1 and candidate.get("buses") is Array and candidate.get("lines") is Array:
+		MunicipalManagement.initialize(candidate)
+		for line in candidate.lines:
+			if line is Dictionary and line.get("stops") is Array and not line.has("outbound_path"):
+				var route := sim.geo.circuit(line.stops)
+				if not route.is_empty():
+					line.merge(route, true)
+		candidate.schema_version = 2
 	if not sim.validate(candidate):
 		last_error = "Dados de partida inválidos. A partida atual foi preservada."
 		return false

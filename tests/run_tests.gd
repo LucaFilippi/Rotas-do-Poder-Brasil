@@ -47,12 +47,12 @@ func run() -> void:
 	check(sim.save_line("Teste", [0, 1], 1), "Criação de linha")
 	var report := sim.preview()
 	check(report.passengers == 0 and report.active_buses == 0 and report.revenue == 0, "Sem motorista não opera")
-	check(report.cost == int(sim.balance.administration_daily), "Administração sem operação")
+	check(report.cost == int(sim.balance.administration_daily) + report.garage_cost, "Administração e garagem sem operação")
 	check(sim.hire_driver(), "Contratação")
 	report = sim.preview()
 	check(report.active_buses == 1 and report.passengers > 0, "Opera com motorista")
 	check(report.revenue == report.passengers * sim.state.fare, "Receita = embarques × tarifa")
-	check(report.cost == report.fuel + report.maintenance + report.salaries + report.administration, "Custos conciliam")
+	check(report.cost == report.fuel + report.maintenance + report.salaries + report.administration + report.ticketing_cost + report.garage_cost + report.overtime, "Custos conciliam")
 	check(report.operating_result == report.revenue - report.cost, "Resultado operacional")
 	check(report.accounting_result == report.operating_result - report.depreciation, "Lucro contábil separado")
 	check(report.passengers <= report.demand and report.unserved + report.passengers == report.demand, "Conservação da demanda")
@@ -89,7 +89,7 @@ func run() -> void:
 		assigned += int(line.demand)
 	var covered := 0
 	for id in [0, 1, 2]:
-		covered += int(geo.stops[id].daily_demand)
+		covered += int(round(float(geo.stops[id].daily_demand) * MunicipalManagement.context(competition.state).demand_factor))
 	check(assigned == covered, "Linhas concorrentes dividem sem duplicar demanda")
 	competition.state.drivers = 1
 	c = competition.preview()
@@ -118,7 +118,7 @@ func run() -> void:
 	check(saver.save_game(long_run, 1), "Salvar SQLite")
 	var loaded := Simulation.new(geo)
 	check(saver.load_game(loaded, 1), "Carregar SQLite")
-	check(JSON.stringify(loaded.state) == JSON.stringify(long_run.state), "Round trip integral")
+	check(JSON.stringify(saver.normalize_numbers(loaded.state.duplicate(true))) == JSON.stringify(saver.normalize_numbers(long_run.state.duplicate(true))), "Round trip integral (números canônicos)")
 	check(JSON.stringify(loaded.advance_day()) == JSON.stringify(long_run.advance_day()), "Continuidade após carregamento (precisão serializada)")
 	check(saver.save_game(sim, 2), "Segundo slot independente")
 	check(saver.save_game(sim, 0), "Autosave independente")
@@ -143,6 +143,45 @@ func run() -> void:
 	bad.cash = 1.5
 	check(not sim.validate(bad), "Valores em centavos são inteiros")
 	saver.close()
+	var advanced := ready_sim(geo)
+	advanced.state.buses[0].components.freios = 20.0
+	check(advanced.preview().active_buses == 0, "Falha crítica bloqueia operação")
+	check(advanced.management_action("repair", 0), "Aprovação do reparo")
+	check(advanced.preview().active_buses == 0, "Oficina retira veículo do serviço")
+	advanced.advance_day()
+	check(advanced.state.buses[0].components.freios == 100, "Reparo restaura componentes")
+	check(advanced.preview().active_buses == 1, "Veículo retorna após oficina")
+	var without_collector := advanced.preview()
+	check(advanced.management_action("collector"), "Contratação de cobrador")
+	check(advanced.preview().lines[0].cycle_hours < without_collector.lines[0].cycle_hours, "Cobrador acelera embarque")
+	var before_ticketing: int = advanced.state.cash
+	check(advanced.management_action("ticketing"), "Implantação da bilhetagem")
+	check(advanced.state.cash < before_ticketing and advanced.preview().ticketing_cost > 0, "Bilhetagem tem investimento e custo recorrente")
+	check(advanced.state.management.collectors == 1, "Automação não demite automaticamente")
+	advanced.state.day = 0
+	advanced.state.management.shift = 0
+	var peak := advanced.preview()
+	advanced.state.management.shift = 1
+	check(peak.context.traffic > advanced.preview().context.traffic, "Pico altera congestionamento")
+	advanced.state.day = 6
+	advanced.state.management.worker_satisfaction = 10
+	check(advanced.preview().context.strike and advanced.preview().active_buses == 0, "Greve condicionada à insatisfação")
+	advanced.state.day = 9
+	advanced.set_fare(1500)
+	check(advanced.preview().context.protest, "Protesto condicionado à tarifa")
+	check(not MunicipalManagement.advice(advanced.state, advanced.preview()).is_empty(), "Assessoria usa indicadores reais")
+	var old_garages: int = advanced.state.management.garages
+	check(advanced.management_action("garage") and advanced.state.management.garages == old_garages + 1, "Expansão das garagens")
+	var legacy := ready_sim(geo)
+	legacy.state.schema_version = 1
+	legacy.state.erase("management")
+	for bus in legacy.state.buses:
+		bus.erase("components")
+	var migration := SaveStore.new("user://migration.sqlite")
+	var payload := JSON.stringify(legacy.state)
+	migration.db.query_with_bindings("INSERT OR REPLACE INTO saves VALUES(1,1,?,?,?);", [payload, payload.sha256_text(), "test"])
+	check(migration.load_game(legacy, 1) and legacy.state.schema_version == 2, "Migração de partida da fase 1")
+	migration.close()
 	# Ciclo completo da interface, usando a mesma cena de produção.
 	var ui = load("res://scenes/main.tscn").instantiate()
 	root.add_child(ui)
@@ -151,7 +190,7 @@ func run() -> void:
 	ui.show_city_selection()
 	ui.sim = ready_sim(geo)
 	ui.show_dashboard()
-	for name in ["Mapa", "Linhas", "Frota", "Equipe", "Tarifas", "Finanças", "Partidas"]:
+	for name in ["Mapa", "Linhas", "Frota", "Equipe", "Tarifas", "Gestão", "Manutenção", "Assessoria", "Finanças", "Partidas"]:
 		ui.tab = name
 		ui.render_side()
 	ui.daily_step()

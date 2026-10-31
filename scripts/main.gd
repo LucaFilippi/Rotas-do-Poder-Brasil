@@ -101,7 +101,7 @@ func show_menu() -> void:
 	label_at(col, "BRASIL", 32, GREEN)
 	label_at(col, "Uma cidade. Muitas escolhas. Cada viagem conta.", 20, MUTED)
 	col.add_child(HSeparator.new())
-	label_at(col, "FASE 1  /  PROTÓTIPO MUNICIPAL", 14, GREEN)
+	label_at(col, "FASE 2  /  GESTÃO MUNICIPAL", 14, GREEN)
 	label_at(col, "Crie sua empresa municipal, conecte Campinas e equilibre\nqualidade do serviço com sustentabilidade financeira.", 18)
 	button_at(col, "Nova empresa  →", show_city_selection)
 	var load_row := box_at(col, false)
@@ -187,7 +187,7 @@ func show_dashboard() -> void:
 	var nav := box_at(body)
 	nav.custom_minimum_size.x = 165
 	label_at(nav, "OPERAÇÃO", 12, MUTED)
-	for item in ["Mapa", "Linhas", "Frota", "Equipe", "Tarifas", "Finanças", "Partidas"]:
+	for item in ["Mapa", "Linhas", "Frota", "Equipe", "Tarifas", "Manutenção", "Gestão", "Assessoria", "Finanças", "Partidas"]:
 		button_at(nav, item, func():
 			tab = item
 			render_side())
@@ -195,7 +195,7 @@ func show_dashboard() -> void:
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	nav.add_child(spacer)
 	button_at(nav, "Enquadrar mapa", func(): map.fit_map())
-	label_at(nav, "FASE 1\nValores fictícios\nSimulação offline", 12, MUTED)
+	label_at(nav, "FASE 2\nValores fictícios\nSimulação offline", 12, MUTED)
 	var map_col := box_at(body)
 	map_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var toolbar := box_at(map_col, false)
@@ -242,7 +242,7 @@ func refresh() -> void:
 	metrics[3].modulate = GREEN if shown.operating_result >= 0 else Color("ff9b91")
 	metrics[4].text = "%d%%" % int(sim.state.satisfaction)
 	var date := Time.get_date_string_from_unix_time(1767225600 + int(sim.state.day) * 86400)
-	day_label.text = "%s\nDia %d • jornada de 8 h" % [date, int(sim.state.day)]
+	day_label.text = "%s\nDia %d • jornada de %d h" % [date, int(sim.state.day), int(sim.state.management.shift_hours)]
 	map.selected_stops = draft.duplicate()
 	map.selected_line = editing_id
 	map.queue_redraw()
@@ -252,7 +252,7 @@ func daily_step() -> void:
 	var saved := store.save_game(sim, 0)
 	status.text = "%d passageiros • %d viagens sem atendimento • %s" % [int(result.passengers), int(result.unserved), "automático salvo" if saved else store.last_error]
 	refresh()
-	if tab in ["Finanças", "Frota", "Mapa"]:
+	if tab in ["Finanças", "Frota", "Mapa", "Manutenção", "Gestão", "Assessoria"]:
 		render_side()
 
 func _process(delta: float) -> void:
@@ -287,6 +287,8 @@ func render_side() -> void:
 		child.queue_free()
 	label_at(side, tab.to_upper(), 14, GREEN)
 	match tab:
+		"Gestão", "Manutenção", "Assessoria":
+			render_management()
 		"Mapa":
 			label_at(side, "Sua rede começa aqui", 26)
 			label_at(side, "1. Compre ônibus em Frota.\n2. Contrate motoristas em Equipe.\n3. Clique em pontos para desenhar uma linha.\n4. Aloque ônibus e avance o dia.", 17)
@@ -308,8 +310,8 @@ func render_side() -> void:
 				label_at(side, "BUS %03d  •  %.1f km\n%d dias • ativo %s" % [int(bus.id), float(bus.km), int(bus.age_days), money(int(bus.book_value))], 16)
 		"Equipe":
 			label_at(side, "%d motoristas" % int(sim.state.drivers), 26)
-			label_at(side, "Jornada simplificada: 8 horas por dia.\nCada ônibus ativo precisa de um motorista.\nAlocação na ordem das linhas da lista.", 16, MUTED)
-			label_at(side, "Salário diário por motorista: " + money(int(sim.balance.driver_daily_salary)), 17)
+			label_at(side, "Jornada: %d horas por dia.\nCada ônibus ativo precisa de um motorista.\nConfigure salário, turno e cobradores em Gestão." % int(sim.state.management.shift_hours), 16, MUTED)
+			label_at(side, "Salário diário por motorista: " + money(int(sim.state.management.driver_salary)), 17)
 			button_at(side, "Contratar • " + money(int(sim.balance.hiring_cost)), func():
 				status.text = "Motorista contratado." if sim.hire_driver() else sim.last_error
 				refresh()
@@ -421,14 +423,92 @@ func render_lines() -> void:
 func render_finances() -> void:
 	var r := sim.preview()
 	label_at(side, "Previsão do próximo dia", 25)
-	for pair in [["Receita tarifária", r.revenue], ["Combustível", r.fuel], ["Manutenção básica", r.maintenance], ["Salários", r.salaries], ["Administração", r.administration], ["Resultado operacional", r.operating_result], ["Depreciação", r.depreciation], ["Lucro contábil", r.accounting_result], ["Fluxo de caixa", r.cash_flow]]:
+	for pair in [["Receita tarifária", r.revenue], ["Combustível", r.fuel], ["Manutenção por km", r.maintenance], ["Salários", r.salaries], ["Horas extras", r.overtime], ["Bilhetagem e validadores", r.ticketing_cost], ["Garagens", r.garage_cost], ["Administração", r.administration], ["Resultado operacional", r.operating_result], ["Depreciação", r.depreciation], ["Lucro contábil", r.accounting_result], ["Fluxo de caixa", r.cash_flow]]:
 		label_at(side, str(pair[0]) + "\n" + money(int(pair[1])), 16)
 	label_at(side, "Compras e contratações são desembolsos no momento da decisão. Ônibus são ativos depreciados; compras não são custo operacional diário.", 14, MUTED)
 	label_at(side, "HISTÓRICO / ÚLTIMOS 30 DIAS", 12, GREEN)
+	var month_revenue := 0
+	var month_cost := 0
+	for row in sim.state.history:
+		if int(row.day - 1) / 30 == maxi(0, int(sim.state.day - 1)) / 30:
+			month_revenue += int(row.revenue)
+			month_cost += int(row.cost)
+	label_at(side, "Período de 30 dias\nReceita: %s\nCustos: %s\nResultado: %s" % [money(month_revenue), money(month_cost), money(month_revenue - month_cost)], 16)
 	var start := maxi(0, sim.state.history.size() - 30)
 	for i in range(sim.state.history.size() - 1, start - 1, -1):
 		var row: Dictionary = sim.state.history[i]
 		label_at(side, "Dia %d • resultado %s\nReceita %s / custo %s" % [int(row.day), money(int(row.operating_result)), money(int(row.revenue)), money(int(row.cost))], 14, MUTED)
+
+func management_button(text: String, action: String, value: int = 0) -> void:
+	button_at(side, text, func():
+		status.text = "Decisão aplicada." if sim.management_action(action, value) else sim.last_error
+		refresh()
+		render_side())
+
+func setting(text: String, key: String, minimum: int, maximum: int, step: int, currency: bool = false) -> void:
+	label_at(side, text, 15, MUTED)
+	var input := SpinBox.new()
+	var scale_value := 100.0 if currency else 1.0
+	input.min_value = minimum / scale_value
+	input.max_value = maximum / scale_value
+	input.step = step / scale_value
+	input.value = float(sim.state.management[key]) / scale_value
+	if currency:
+		input.prefix = "R$ "
+	side.add_child(input)
+	button_at(side, "Aplicar " + text.to_lower(), func():
+		sim.state.management[key] = int(round(input.value * scale_value))
+		sim.log_decision("%s: %.2f" % [text, input.value])
+		refresh()
+		render_side())
+
+func render_management() -> void:
+	var m: Dictionary = sim.state.management
+	var forecast := sim.preview()
+	if tab == "Manutenção":
+		label_at(side, "Condição e oficina", 25)
+		setting("Preventiva a cada km", "preventive_km", 1000, 10000, 500)
+		label_at(side, "Acima do intervalo, o desgaste cresce 80%. Falhas críticas bloqueiam a operação. Reparos levam dias e exigem caixa.", 14, MUTED)
+		for i in sim.state.buses.size():
+			var bus: Dictionary = sim.state.buses[i]
+			var inspection := MunicipalManagement.inspection(bus)
+			label_at(side, "BUS %03d • %s" % [int(bus.id), "OFICINA" if bus.workshop_days > 0 else ("NECESSITA CONSERTO" if inspection.critical else "AINDA RODA")], 18)
+			for component in MunicipalManagement.COMPONENTS:
+				label_at(side, "%s: %.0f%%" % [component.capitalize(), float(bus.components[component])], 13, MUTED)
+			label_at(side, "%.0f km desde revisão\nOrçamento: %s • %d dia(s)\nAdiar aumenta desgaste e risco de indisponibilidade." % [float(bus.since_service_km), money(int(inspection.cost)), int(inspection.days)], 14)
+			management_button("Aprovar reparo", "repair", i)
+	elif tab == "Assessoria":
+		label_at(side, "Painel da secretaria", 25)
+		label_at(side, "Reputação: %.1f%%\nEquipe: %.1f%%\nPopulação: %.1f%%" % [float(m.reputation), float(m.worker_satisfaction), float(sim.state.satisfaction)], 18)
+		for advice in MunicipalManagement.advice(sim.state, forecast):
+			label_at(side, advice, 16)
+		management_button("Negociar bônus • " + money((int(sim.state.drivers) + int(m.collectors)) * 30000), "negotiate")
+		label_at(side, "NOTÍCIAS E EVENTOS", 14, GREEN)
+		for i in range(m.events.size() - 1, maxi(-1, m.events.size() - 16), -1):
+			label_at(side, "Dia %d: %s" % [int(m.events[i].day), str(m.events[i].text)], 14, MUTED)
+	else:
+		label_at(side, "Operação municipal", 25)
+		label_at(side, "Cobradores: %d\nBilhetagem: %s\nGaragens: %d / %d vagas" % [int(m.collectors), "eletrônica" if m.ticketing else "tradicional", int(m.garages), int(m.garages) * int(m.garage_capacity)], 17)
+		management_button("Contratar cobrador • R$ 800,00", "collector")
+		label_at(side, "Sem cobrador, motorista cobra e o percurso leva 20% mais tempo. Cada cobrador atende um ônibus por jornada.", 14, MUTED)
+		management_button("Implantar validadores • " + money(1800000 + sim.state.buses.size() * 450000), "ticketing")
+		label_at(side, "Automação: R$ 15/ônibus/dia + suporte R$ 160/dia; transição reduz satisfação da equipe em 15 pontos. Cobradores mantêm seus salários.", 14, MUTED)
+		management_button("Construir garagem • R$ 120.000,00", "garage")
+		label_at(side, "Cada garagem: seis vagas e R$ 100/dia de operação.", 14, MUTED)
+		setting("Salário diário do motorista", "driver_salary", 9000, 50000, 1000, true)
+		setting("Salário diário do cobrador", "collector_salary", 6000, 35000, 1000, true)
+		setting("Jornada em horas", "shift_hours", 6, 10, 1)
+		label_at(side, "Acima de 8h: adicional de 50% nas horas extras e redução da satisfação da equipe. Uma única jornada diária garante descanso de ao menos 14h.", 14, MUTED)
+		var shifts := OptionButton.new()
+		for name in ["Pico da manhã", "Entre picos", "Pico da tarde", "Noturno"]:
+			shifts.add_item(name)
+		shifts.select(int(m.shift))
+		shifts.item_selected.connect(func(index: int):
+			m.shift = index
+			sim.log_decision("Turno alterado: %d" % index)
+			refresh())
+		side.add_child(shifts)
+		label_at(side, "Trânsito previsto: tempo × %.2f\nProcura varia por turno e fim de semana.\nPrevisão: %d embarques / %s de resultado" % [float(forecast.context.traffic), int(forecast.passengers), money(int(forecast.operating_result))], 15, GREEN)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE and store != null:

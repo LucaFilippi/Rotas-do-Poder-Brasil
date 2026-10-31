@@ -1,7 +1,7 @@
 # Rotas do Poder: Brasil
 
 Protótipo municipal em **Godot 4.5.1 / GDScript**, para Windows, em português.
-**A Fase 2 foi iniciada com separação visual de ida/volta e otimização do mapa.**
+**Fase 2 disponível: manutenção, equipe, bilhetagem, trânsito, eventos e gestão avançada.**
 
 ![Protótipo municipal](docs/images/prototipo.png)
 
@@ -26,6 +26,10 @@ O executável de distribuição Windows fica para a fase de empacotamento; esta 
 4. Em **Linhas**, escolha nome e quantidade de ônibus e salve.
 5. Avance um dia ou selecione uma velocidade. Ajuste tarifas e acompanhe **Finanças**.
 6. Use **Partidas** para salvar em um dos três espaços. Há um automático por fechamento diário.
+
+Use **Gestão** para cobradores, validadores, garagens, salários e turno; **Manutenção**
+para inspeções e reparos; **Assessoria** para recomendações, notícias, reputação e negociação.
+Partidas antigas são migradas automaticamente ao carregar.
 
 Arraste para mover o mapa e use a roda para ampliar. Selecionar/editar uma linha destaca seu
 circuito; a ida e a volta seguem conexões dirigidas reais. Motoristas limitam a operação:

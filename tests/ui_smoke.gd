@@ -28,6 +28,13 @@ func run() -> void:
 	await process_frame
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png("res://build/qa/lines.png")
+	for panel in ["Gestão", "Manutenção", "Assessoria"]:
+		ui.tab = panel
+		ui.render_side()
+		await process_frame
+		await process_frame
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png("res://build/qa/" + panel + ".png")
 	ui.queue_free()
 	await process_frame
 	print("UI_SMOKE_OK")
