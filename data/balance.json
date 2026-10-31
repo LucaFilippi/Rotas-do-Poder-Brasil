@@ -1,0 +1,17 @@
+{
+  "description": "Parâmetros fictícios calibráveis do protótipo, não custos reais brasileiros",
+  "initial_cash": 180000000,
+  "bus_price": 38000000,
+  "bus_capacity": 75,
+  "bus_life_days": 3650,
+  "fuel_cents_per_km": 230,
+  "maintenance_cents_per_km": 65,
+  "driver_daily_salary": 18000,
+  "hiring_cost": 120000,
+  "administration_daily": 30000,
+  "reference_fare": 500,
+  "service_hours": 8,
+  "operational_speed_kmh": 20,
+  "terminal_minutes": 10,
+  "fare_elasticity": 1.2
+}
