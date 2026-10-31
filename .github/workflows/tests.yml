@@ -1,0 +1,20 @@
+name: Fase 1 - regressões
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Godot 4.5.1
+        run: |
+          mkdir -p .tools
+          curl --fail --location --retry 3 https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip -o .tools/godot.zip
+          unzip -q .tools/godot.zip -d .tools
+          chmod +x .tools/Godot_v4.5.1-stable_linux.x86_64
+      - name: Importação e testes
+        run: python tools/check.py --godot .tools/Godot_v4.5.1-stable_linux.x86_64

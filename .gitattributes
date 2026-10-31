@@ -1,0 +1,10 @@
+* text=auto
+*.gd text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.dll binary
+*.so binary
+*.gz binary
+*.png binary
