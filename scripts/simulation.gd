@@ -67,7 +67,9 @@ func save_line(name: String, stop_ids: Array, bus_count: int, line_id: int = -1)
 		last_error = "Compre mais ônibus ou reduza a alocação de outras linhas."
 		return false
 	var line := {"id": line_id, "name": name.strip_edges().left(50), "stops": stop_ids.duplicate(),
-		"buses": bus_count, "distance_km": route.distance_km, "path": route.path}
+		"buses": bus_count, "distance_km": route.distance_km, "path": route.path,
+		"outbound_path": route.outbound_path, "return_path": route.return_path,
+		"outbound_distance_km": route.outbound_distance_km, "return_distance_km": route.return_distance_km}
 	if line.name.is_empty():
 		line.name = "Linha municipal"
 	if index < 0:
@@ -197,7 +199,7 @@ func validate(candidate: Variant) -> bool:
 	for line in candidate.lines:
 		if not line is Dictionary:
 			return false
-		for key in ["id", "name", "stops", "buses", "distance_km", "path"]:
+		for key in ["id", "name", "stops", "buses", "distance_km", "path", "outbound_path", "return_path"]:
 			if not line.has(key):
 				return false
 		if not line.name is String or not line.stops is Array or not line.buses is float and not line.buses is int:
@@ -212,6 +214,10 @@ func validate(candidate: Variant) -> bool:
 		if route.is_empty() or not (line.distance_km is float or line.distance_km is int) or not is_equal_approx(float(route.distance_km), float(line.distance_km)):
 			return false
 		if not line.path is Array or route.path.size() != line.path.size():
+			return false
+		if not line.outbound_path is Array or not line.return_path is Array:
+			return false
+		if line.outbound_path != route.outbound_path or line.return_path != route.return_path:
 			return false
 		for j in route.path.size():
 			if not (line.path[j] is int or line.path[j] is float) or float(line.path[j]) != float(route.path[j]):

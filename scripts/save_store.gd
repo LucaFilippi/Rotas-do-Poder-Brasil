@@ -38,11 +38,11 @@ func load_game(sim: Simulation, slot: int) -> bool:
 	if int(row.version) != 1 or str(row.payload).sha256_text() != str(row.checksum):
 		last_error = "Versão incompatível ou salvamento corrompido."
 		return false
-	var candidate = JSON.parse_string(row.payload)
+	var candidate = normalize_numbers(JSON.parse_string(row.payload))
 	if not sim.validate(candidate):
 		last_error = "Dados de partida inválidos. A partida atual foi preservada."
 		return false
-	sim.state = normalize_numbers(candidate)
+	sim.state = candidate
 	return true
 
 func normalize_numbers(value: Variant) -> Variant:

@@ -32,21 +32,32 @@ func circuit(stop_ids: Array) -> Dictionary:
 		if not (id is int or id is float) or not is_finite(float(id)) or float(id) != floor(float(id)) or int(id) < 0 or int(id) >= stops.size() or unique.has(int(id)):
 			return {}
 		unique[int(id)] = true
+	var outbound := _route_between(stop_ids)
+	var reversed_stops := stop_ids.duplicate()
+	reversed_stops.reverse()
+	var inbound := _route_between(reversed_stops)
+	if outbound.is_empty() or inbound.is_empty():
+		return {}
+	var path: Array = outbound.path.duplicate()
+	for node in inbound.path:
+		if path.is_empty() or path.back() != node:
+			path.append(node)
+	return {"path": path, "outbound_path": outbound.path, "return_path": inbound.path,
+		"outbound_distance_km": outbound.distance_km, "return_distance_km": inbound.distance_km,
+		"distance_km": outbound.distance_km + inbound.distance_km}
+
+func _route_between(sequence: Array) -> Dictionary:
 	var path: Array = []
-	# Ida via todos os pontos; volta via os mesmos pontos em ordem inversa.
-	var itinerary := stop_ids.duplicate()
-	for i in range(stop_ids.size() - 2, -1, -1):
-		itinerary.append(stop_ids[i])
 	var meters := 0.0
-	for i in range(itinerary.size() - 1):
-		var a := int(stops[int(itinerary[i])].node)
-		var b := int(stops[int(itinerary[i + 1])].node)
+	for i in range(sequence.size() - 1):
+		var a := int(stops[int(sequence[i])].node)
+		var b := int(stops[int(sequence[i + 1])].node)
 		var segment := graph.get_id_path(a, b)
 		if segment.is_empty():
 			return {}
 		for j in range(segment.size() - 1):
 			meters += float(edges["%d:%d" % [segment[j], segment[j + 1]]])
-		for j in range(segment.size()):
-			if path.is_empty() or path.back() != segment[j]:
-				path.append(segment[j])
+		for node in segment:
+			if path.is_empty() or path.back() != node:
+				path.append(node)
 	return {"path": path, "distance_km": meters / 1000.0}

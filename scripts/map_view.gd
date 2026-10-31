@@ -11,18 +11,24 @@ var dragging := false
 var moved := false
 var animation_time := 0.0
 var redraw_time := 0.0
+var route_preview: Dictionary = {}
+var road_cache: Array[PackedVector2Array] = []
+var road_colors: Array[Color] = []
+var map_dirty := true
 
 func _ready() -> void:
 	clip_contents = true
 	mouse_default_cursor_shape = Control.CURSOR_CROSS
 	resized.connect(fit_map)
 	fit_map()
+	_rebuild_road_cache()
 
 func fit_map() -> void:
 	if size.x < 1 or sim == null:
 		return
 	zoom = minf(size.x / 3900.0, size.y / 4000.0)
 	offset = size / 2.0
+	_rebuild_road_cache()
 	queue_redraw()
 
 func screen_point(node: int) -> Vector2:
@@ -36,6 +42,7 @@ func _gui_input(event: InputEvent) -> void:
 				zoom = clampf(zoom * (1.2 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.2), 0.06, 2.0)
 				offset = event.position - before * zoom
 				queue_redraw()
+				map_dirty = true
 		elif event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE, MOUSE_BUTTON_RIGHT]:
 			if event.pressed:
 				dragging = true
@@ -56,15 +63,35 @@ func _gui_input(event: InputEvent) -> void:
 		if event.relative.length() > 1:
 			moved = true
 		offset += event.relative
+		map_dirty = true
 		queue_redraw()
 	accept_event()
 
 func _process(delta: float) -> void:
 	animation_time += delta
-	redraw_time += delta
-	if redraw_time > 0.12:
-		redraw_time = 0.0
-		queue_redraw()
+	if sim != null and sim.state.drivers > 0 and sim.state.lines.size() > 0:
+		redraw_time += delta
+		if redraw_time > 0.08:
+			redraw_time = 0.0
+			queue_redraw()
+
+func set_preview(route: Dictionary) -> void:
+	route_preview = route
+	queue_redraw()
+
+func _rebuild_road_cache() -> void:
+	if sim == null or sim.geo.data.is_empty():
+		return
+	road_cache.clear()
+	road_colors.clear()
+	for road in sim.geo.data.roads:
+		var points := PackedVector2Array()
+		for node in road.nodes:
+			points.append(screen_point(int(node)))
+		if points.size() >= 2:
+			road_cache.append(points)
+			road_colors.append(Color("435565") if road.kind in ["primary", "secondary", "tertiary", "trunk"] else Color("2a3c4b"))
+	map_dirty = false
 
 func draw_route(path: Array, color: Color, width: float) -> void:
 	if path.size() < 2:
@@ -83,27 +110,17 @@ func _draw() -> void:
 		draw_line(Vector2(x, 0), Vector2(x, size.y), Color("142432"))
 	for y in range(0, int(size.y), 80):
 		draw_line(Vector2(0, y), Vector2(size.x, y), Color("142432"))
-	var labels := 0
-	for road in sim.geo.data.roads:
-		var points := PackedVector2Array()
-		var visible := false
-		for node in road.nodes:
-			var p := screen_point(int(node))
-			points.append(p)
-			visible = visible or Rect2(Vector2(-100, -100), size + Vector2(200, 200)).has_point(p)
-		if not visible or points.size() < 2:
-			continue
-		var major: bool = road.kind in ["primary", "secondary", "tertiary", "trunk"]
-		draw_polyline(points, Color("435565") if major else Color("2a3c4b"), 3.0 if major else 1.5, true)
-		if major and not road.name.is_empty() and labels < 16 and road.nodes.size() > 6:
-			draw_string(font, points[points.size() / 2] + Vector2(4, -5), road.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("8296a5"))
-			labels += 1
+	if map_dirty:
+		_rebuild_road_cache()
+	for i in road_cache.size():
+		draw_polyline(road_cache[i], road_colors[i], 3.0 if road_colors[i] == Color("435565") else 1.5, true)
 	for line in sim.state.lines:
-		var color := Color("57b6ab") if int(line.id) != selected_line else Color("f7bd65")
-		draw_route(line.path, color, 3.5)
-	var route := sim.geo.circuit(selected_stops)
-	if not route.is_empty():
-		draw_route(route.path, Color("ffcc75"), 4.0)
+		var selected := int(line.id) == selected_line
+		draw_route(line.outbound_path if line.has("outbound_path") else line.path, Color("68e2ff") if selected else Color("35c7ee"), 4.0)
+		draw_route(line.return_path if line.has("return_path") else line.path, Color("ffbf70") if selected else Color("f08a42"), 4.0)
+	if not route_preview.is_empty():
+		draw_route(route_preview.outbound_path, Color("68e2ff"), 5.0)
+		draw_route(route_preview.return_path, Color("ffbf70"), 5.0)
 	for stop in sim.geo.stops:
 		var p := screen_point(int(stop.node))
 		var selected := selected_stops.has(int(stop.id))

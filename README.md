@@ -1,7 +1,7 @@
 # Rotas do Poder: Brasil
 
 Protótipo municipal em **Godot 4.5.1 / GDScript**, para Windows, em português.
-**Somente a Fase 1 está implementada. A Fase 2 depende de solicitação explícita.**
+**A Fase 2 foi iniciada com separação visual de ida/volta e otimização do mapa.**
 
 ![Protótipo municipal](docs/images/prototipo.png)
 
@@ -36,6 +36,7 @@ um motorista atende um ônibus durante a jornada simplificada de oito horas.
 - Menu, seleção de Campinas e criação de empresa municipal.
 - Grafo viário real do centro de Campinas: 7.733 nós, 10.954 arestas dirigidas e 65 pontos sugeridos.
 - Mapa vetorial offline, pan/zoom, criação, edição e remoção de linhas com aviso de impacto.
+- Ida em azul e volta em laranja, com distâncias independentes e caminhos dirigidos separados.
 - Compra de ônibus, contratação de motoristas e alocação sem duplicação de frota.
 - Tarifa com prévia, demanda compartilhada entre linhas, capacidade e viagens não atendidas.
 - Simulação diária determinística, pausa e velocidades 1x/2x/5x/10x.
@@ -83,5 +84,5 @@ SQLite: [godot-sqlite 4.6](https://github.com/2shady4u/godot-sqlite/releases/tag
 licença em `addons/godot-sqlite/LICENSE.md`. Binários Windows/Linux estão versionados.
 Os demais sistemas operacionais não fazem parte desta entrega.
 
-Plano, arquitetura, critérios e limites: [Fase 1](docs/FASE_1.md).
+Plano, arquitetura, critérios e limites: [Fase 1](docs/FASE_1.md). Início da Fase 2: [FASE_2](docs/FASE_2.md).
 Visão completa: [Documento mestre](docs/DOCUMENTO_MESTRE.md).

@@ -355,7 +355,7 @@ func render_side() -> void:
 
 func render_lines() -> void:
 	label_at(side, "Editor de percurso", 25)
-	label_at(side, "Clique nos pontos do mapa, na ordem da ida. Clique novamente para retirar. A volta passa pelos mesmos pontos em ordem inversa.", 15, MUTED)
+	label_at(side, "Clique nos pontos na ordem da ida. A ida aparece em azul e a volta em laranja; a volta usa os mesmos pontos em ordem inversa.", 15, MUTED)
 	var name_input := LineEdit.new()
 	name_input.text = draft_name
 	name_input.max_length = 50
@@ -373,8 +373,9 @@ func render_lines() -> void:
 		names.append("%d · %s" % [int(id) + 1, str(sim.geo.stops[int(id)].name)])
 	label_at(side, " → ".join(names) if not names.is_empty() else "Selecione dois ou mais pontos.", 14, GREEN)
 	var route := sim.geo.circuit(draft)
+	map.set_preview(route)
 	if not route.is_empty():
-		label_at(side, "Ida + volta: %.2f km" % float(route.distance_km), 17)
+		label_at(side, "IDA  %.2f km  azul\nVOLTA  %.2f km  laranja\nTOTAL  %.2f km" % [float(route.outbound_distance_km), float(route.return_distance_km), float(route.distance_km)], 17)
 	button_at(side, "Salvar linha" if editing_id < 0 else "Aplicar edição", func():
 		if sim.save_line(draft_name, draft, draft_buses, editing_id):
 			status.text = "Linha salva. Avance o dia para operar."
