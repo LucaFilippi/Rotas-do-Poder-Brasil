@@ -1,0 +1,8 @@
+.godot/
+.tools/
+build/
+__pycache__/
+*.pyc
+*.tmp
+*.sqlite*
+data/raw/
