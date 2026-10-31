@@ -42,8 +42,20 @@ func load_game(sim: Simulation, slot: int) -> bool:
 	if not sim.validate(candidate):
 		last_error = "Dados de partida inválidos. A partida atual foi preservada."
 		return false
-	sim.state = candidate
+	sim.state = normalize_numbers(candidate)
 	return true
+
+func normalize_numbers(value: Variant) -> Variant:
+	# JSON não distingue inteiros; restaura contadores e identificadores.
+	if value is float and is_finite(value) and value == floor(value):
+		return int(value)
+	if value is Array:
+		for i in value.size():
+			value[i] = normalize_numbers(value[i])
+	elif value is Dictionary:
+		for key in value:
+			value[key] = normalize_numbers(value[key])
+	return value
 
 func close() -> void:
 	if db != null:

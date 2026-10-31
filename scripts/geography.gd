@@ -29,7 +29,7 @@ func circuit(stop_ids: Array) -> Dictionary:
 		return {}
 	var unique := {}
 	for id in stop_ids:
-		if not (id is int or id is float) or int(id) < 0 or int(id) >= stops.size() or unique.has(int(id)):
+		if not (id is int or id is float) or not is_finite(float(id)) or float(id) != floor(float(id)) or int(id) < 0 or int(id) >= stops.size() or unique.has(int(id)):
 			return {}
 		unique[int(id)] = true
 	var path: Array = []

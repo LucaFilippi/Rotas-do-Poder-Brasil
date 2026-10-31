@@ -185,6 +185,8 @@ func validate(candidate: Variant) -> bool:
 	for key in ["day", "cash", "fare", "drivers", "satisfaction", "next_line_id"]:
 		if not (candidate[key] is int or candidate[key] is float) or not is_finite(float(candidate[key])):
 			return false
+		if key != "satisfaction" and float(candidate[key]) != floor(float(candidate[key])):
+			return false
 	for key in ["buses", "lines", "history", "decisions"]:
 		if not candidate[key] is Array:
 			return false
@@ -200,17 +202,20 @@ func validate(candidate: Variant) -> bool:
 				return false
 		if not line.name is String or not line.stops is Array or not line.buses is float and not line.buses is int:
 			return false
-		if not (line.id is int or line.id is float) or int(line.id) < 1 or ids.has(int(line.id)) or candidate.next_line_id <= line.id:
+		if not (line.id is int or line.id is float) or not is_finite(float(line.id)) or float(line.id) != floor(float(line.id)) or int(line.id) < 1 or ids.has(int(line.id)) or candidate.next_line_id <= line.id:
 			return false
 		ids[int(line.id)] = true
-		if line.buses < 0 or line.buses > 100:
+		if not is_finite(float(line.buses)) or float(line.buses) != floor(float(line.buses)) or line.buses < 0 or line.buses > 100:
 			return false
 		allocated += int(line.buses)
 		var route := geo.circuit(line.stops)
 		if route.is_empty() or not (line.distance_km is float or line.distance_km is int) or not is_equal_approx(float(route.distance_km), float(line.distance_km)):
 			return false
-		if not line.path is Array or route.path != line.path:
+		if not line.path is Array or route.path.size() != line.path.size():
 			return false
+		for j in route.path.size():
+			if not (line.path[j] is int or line.path[j] is float) or float(line.path[j]) != float(route.path[j]):
+				return false
 	if allocated > candidate.buses.size():
 		return false
 	for bus in candidate.buses:
@@ -218,6 +223,8 @@ func validate(candidate: Variant) -> bool:
 			return false
 		for key in ["id", "km", "age_days", "book_value"]:
 			if not bus.has(key) or not (bus[key] is int or bus[key] is float) or not is_finite(float(bus[key])) or bus[key] < 0:
+				return false
+			if key != "km" and float(bus[key]) != floor(float(bus[key])):
 				return false
 	# Histórico é usado pela interface: valide também sua estrutura.
 	for row in candidate.history:
